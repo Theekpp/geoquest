@@ -9,6 +9,111 @@ interface MapViewProps {
   currentPOI?: { id: string; coordinates: [number, number]; title: string } | null;
 }
 
+function parseLineString(lineString: string): Array<[number, number]> {
+  const coordsStr = lineString.replace('LINESTRING(', '').replace(')', '');
+  const coords = coordsStr.split(', ').map(pair => {
+    const [lon, lat] = pair.split(' ').map(Number);
+    return [lon, lat] as [number, number];
+  });
+  return coords;
+}
+
+async function fetchPedestrianRoute(
+  fromLon: number,
+  fromLat: number,
+  toLon: number,
+  toLat: number
+): Promise<Array<[number, number]> | null> {
+  try {
+    const apiKey = import.meta.env.VITE_2GIS_API_KEY;
+    if (!apiKey || apiKey === 'demo') {
+      console.warn('2GIS API key not configured, skipping route request');
+      return null;
+    }
+
+    const requestBody = {
+      points: [
+        {
+          type: 'walking',
+          lon: fromLon,
+          lat: fromLat,
+        },
+        {
+          type: 'walking',
+          lon: toLon,
+          lat: toLat,
+        },
+      ],
+      transport: 'walking',
+    };
+
+    console.log('🔄 Requesting pedestrian route:', requestBody);
+
+    const response = await fetch(
+      `https://routing.api.2gis.com/routing/7.0.0/global?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Route API error:', response.status, errorText);
+      return null;
+    }
+
+    const data = await response.json();
+    
+    if (data.result && data.result.length > 0) {
+      const route = data.result[0];
+      
+      // Collect all geometry segments
+      const allCoords: Array<[number, number]> = [];
+      
+      // Add begin pedestrian path if exists
+      if (route.begin_pedestrian_path?.geometry?.selection) {
+        const beginCoords = parseLineString(route.begin_pedestrian_path.geometry.selection);
+        allCoords.push(...beginCoords);
+      }
+      
+      // Add main route geometry from maneuvers
+      if (route.maneuvers && route.maneuvers.length > 0) {
+        route.maneuvers.forEach((maneuver: any) => {
+          if (maneuver.outcoming_path?.geometry) {
+            maneuver.outcoming_path.geometry.forEach((geom: any) => {
+              if (geom.selection) {
+                const segmentCoords = parseLineString(geom.selection);
+                allCoords.push(...segmentCoords);
+              }
+            });
+          }
+        });
+      }
+      
+      // Add end pedestrian path if exists
+      if (route.end_pedestrian_path?.geometry?.selection) {
+        const endCoords = parseLineString(route.end_pedestrian_path.geometry.selection);
+        allCoords.push(...endCoords);
+      }
+      
+      if (allCoords.length > 0) {
+        console.log(`✅ Построен маршрут из ${allCoords.length} точек`);
+        return allCoords;
+      }
+    }
+    
+    console.warn('⚠️ No route geometry in response');
+    return null;
+  } catch (error) {
+    console.error('❌ Error fetching pedestrian route:', error);
+    return null;
+  }
+}
+
 export default function MapView({ onPOIClick, currentPOI }: MapViewProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -145,14 +250,32 @@ export default function MapView({ onPOIClick, currentPOI }: MapViewProps) {
             routeLineRef.current.destroy();
           }
 
+          // Fetch pedestrian route from 2GIS Routing API
+          const routeCoordinates = await fetchPedestrianRoute(
+            userCoords[0], // from lon
+            userCoords[1], // from lat
+            currentPOI.coordinates[0], // to lon
+            currentPOI.coordinates[1]  // to lat
+          );
+
+          // Use real route geometry if available, otherwise fall back to straight line
+          const finalCoordinates = routeCoordinates || [userCoords, currentPOI.coordinates];
+
           // Create polyline for route
           const routeLine = new mapglAPI.Polyline(mapInstanceRef.current, {
-            coordinates: [userCoords, currentPOI.coordinates],
+            coordinates: finalCoordinates,
             color: '#3b82f6',
-            width: 3,
+            width: 4,
           });
 
           routeLineRef.current = routeLine;
+
+          // Log route info
+          if (routeCoordinates) {
+            console.log('🚶 Построен пешеходный маршрут через 2GIS Routing API');
+          } else {
+            console.log('📍 Построена прямая линия (fallback)');
+          }
         }
       } catch (err) {
         console.error('Error updating user marker and route:', err);
