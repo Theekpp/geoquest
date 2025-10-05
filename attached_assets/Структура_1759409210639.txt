@@ -1,0 +1,25 @@
+project/
+├── backend/                 # Kotlin сервер
+│   ├── src/main/kotlin
+│   │   ├── controller      # REST контроллеры
+│   │   ├── service         # Бизнес-логика
+│   │   ├── repository      # Работа с БД
+│   │   ├── model           # DTO, Entity
+│   │   ├── config          # Настройки приложения
+│   │   └── util            # Утилиты
+│   ├── build.gradle.kts
+│   └── application.yml
+├── frontend/                # Telegram Mini App (React/Vanilla JS)
+│   ├── src/
+│   │   ├── components      # Компоненты UI
+│   │   ├── api             # Запросы к бэкенду
+│   │   ├── pages           # Страницы
+│   │   ├── hooks           # Кастомные хуки
+│   │   └── utils           # Утилиты
+│   ├── public/
+│   ├── index.html
+│   └── package.json
+├── database/                # SQL скрипты и схема БД
+│   ├── schema.sql
+│   └── init.sql
+└── README.md
