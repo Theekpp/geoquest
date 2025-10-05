@@ -1,40 +1,70 @@
-import { createContext, useContext, ReactNode } from "react";
+import { createContext, useContext, ReactNode, useEffect, useState } from "react";
 import { useTelegramLocation } from "@/hooks/useTelegramLocation";
 import { useLocationUnlocking } from "@/hooks/useLocationUnlocking";
+import { useQuery } from "@tanstack/react-query";
 
-// All POIs with coordinates
-const allPOIs = [
-  { id: "1", coordinates: [37.5876, 55.7558] as [number, number] },
-  { id: "2", coordinates: [37.5594, 55.7917] as [number, number] },
-  { id: "3", coordinates: [37.5584, 55.7897] as [number, number] },
-  { id: "4", coordinates: [37.6173, 55.7558] as [number, number] },
-  { id: "5", coordinates: [37.6053, 55.7497] as [number, number] },
-];
+interface POI {
+  id: string;
+  name: string;
+  description: string;
+  quote: string;
+  latitude: string;
+  longitude: string;
+  order: number;
+  radius: number;
+  points: number;
+  imageUrl: string | null;
+}
+
+async function fetchPOIs(): Promise<POI[]> {
+  const response = await fetch('/api/pois');
+  if (!response.ok) {
+    throw new Error('Failed to fetch POIs');
+  }
+  return response.json();
+}
 
 interface LocationContextValue {
   userLocation: { latitude: number; longitude: number } | null;
-  currentPOI: { id: string; coordinates: [number, number] } | null;
+  currentPOI: POI | null;
   visitedPOIIds: Set<string>;
   isNewCurrentPOI: boolean;
   markCurrentAsViewed: () => void;
+  pois: POI[];
+  isLoadingPOIs: boolean;
 }
 
 const LocationContext = createContext<LocationContextValue | undefined>(undefined);
 
 export function LocationProvider({ children }: { children: ReactNode }) {
   const { location } = useTelegramLocation();
+  const { data: poisData = [], isLoading: isLoadingPOIs } = useQuery({
+    queryKey: ['pois'],
+    queryFn: fetchPOIs,
+  });
+  
+  // Convert POIs to format needed by useLocationUnlocking
+  const poiCoordinates = poisData.map(poi => ({
+    id: poi.id,
+    coordinates: [parseFloat(poi.longitude), parseFloat(poi.latitude)] as [number, number],
+  }));
   
   const {
-    currentPOI,
+    currentPOI: currentPOICoords,
     visitedPOIIds,
     isNewCurrentPOI,
     markCurrentAsViewed,
   } = useLocationUnlocking({
-    pois: allPOIs,
+    pois: poiCoordinates,
     userLat: location?.latitude,
     userLon: location?.longitude,
-    proximityRadius: 100, // 100 meters
+    proximityRadius: 100,
   });
+
+  // Find full POI data for current POI
+  const currentPOI = currentPOICoords 
+    ? poisData.find(poi => poi.id === currentPOICoords.id) || null
+    : null;
 
   return (
     <LocationContext.Provider
@@ -44,6 +74,8 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         visitedPOIIds,
         isNewCurrentPOI,
         markCurrentAsViewed,
+        pois: poisData,
+        isLoadingPOIs,
       }}
     >
       {children}

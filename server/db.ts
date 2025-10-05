@@ -7,6 +7,7 @@ neonConfig.webSocketConstructor = ws;
 
 if (process.env.NODE_ENV === 'development') {
   neonConfig.pipelineConnect = false;
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 }
 
 if (!process.env.DATABASE_URL) {
@@ -15,5 +16,10 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const connectionString = process.env.DATABASE_URL.replace('?sslmode=disable', '');
+
+export const pool = new Pool({ 
+  connectionString,
+  ssl: { rejectUnauthorized: false }
+});
 export const db = drizzle({ client: pool, schema });

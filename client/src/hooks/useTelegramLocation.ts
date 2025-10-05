@@ -46,30 +46,10 @@ export function useTelegramLocation(): UseTelegramLocationResult {
       return;
     }
 
-    // Для Telegram 8.0+ использовать LocationManager (нативный Telegram API)
-    if (telegram.isVersionAtLeast('8.0') && telegram.LocationManager) {
-      console.log('[Geolocation] Using Telegram LocationManager (v8.0+)');
-      telegram.LocationManager.init();
-      
-      if (telegram.LocationManager.isLocationAvailable) {
-        telegram.LocationManager.getLocation((loc) => {
-          if (loc) {
-            console.log('[Geolocation] Got location from LocationManager:', loc);
-            setLocation(loc);
-            setIsLoading(false);
-          } else {
-            setError("Не удалось получить геолокацию");
-            setIsLoading(false);
-          }
-        });
-      } else {
-        setError("Геолокация недоступна в Telegram");
-        setIsLoading(false);
-      }
-    } else {
-      // Для Telegram < 8.0 использовать WebView геолокацию (внутри Telegram через WebView)
-      // Telegram сам показывает диалог разрешений
-      console.log('[Geolocation] Using WebView geolocation (Telegram < 8.0)');
+    // Всегда использовать WebView геолокацию - работает во всех версиях Telegram
+    // Telegram сам показывает диалог разрешений
+    {
+      console.log('[Geolocation] Using WebView geolocation');
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (position) => {
