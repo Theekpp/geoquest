@@ -1,14 +1,6 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
+import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from "@shared/schema";
-
-neonConfig.webSocketConstructor = ws;
-
-if (process.env.NODE_ENV === 'development') {
-  neonConfig.pipelineConnect = false;
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-}
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -16,10 +8,15 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-const connectionString = process.env.DATABASE_URL.replace('?sslmode=disable', '');
+const databaseUrl = process.env.DATABASE_URL;
+
+const isLocalDatabase = databaseUrl.includes('localhost') || 
+                        databaseUrl.includes('127.0.0.1') || 
+                        databaseUrl.includes('sslmode=disable');
 
 export const pool = new Pool({ 
-  connectionString,
-  ssl: { rejectUnauthorized: false }
+  connectionString: databaseUrl,
+  ssl: isLocalDatabase ? false : { rejectUnauthorized: false }
 });
+
 export const db = drizzle({ client: pool, schema });

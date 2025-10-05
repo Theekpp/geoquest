@@ -11,7 +11,7 @@ The Geo-Quest Platform is a scalable, geo-location based quest platform implemen
 ### Technology Stack
 - **Frontend**: React 18 + TypeScript + Vite
 - **Backend**: Express.js + TypeScript
-- **Database**: PostgreSQL (Neon) with Drizzle ORM
+- **Database**: PostgreSQL (Railway) with node-postgres driver and Drizzle ORM
 - **Routing**: Wouter (client-side)
 - **UI Framework**: Tailwind CSS + Radix UI
 - **Map Integration**: 2GIS Map API
@@ -41,5 +41,5 @@ The Geo-Quest Platform is a scalable, geo-location based quest platform implemen
 
 -   **2GIS Map API**: Used for map rendering, displaying POI markers, and route calculation for user guidance. The API key is managed via the `VITE_2GIS_API_KEY` environment variable.
 -   **Telegram Mini App API**: Integrates with the Telegram WebApp API for user authentication (using Telegram user ID), supports Telegram theme colors, and posts events for UI customization within the Telegram environment.
--   **Neon (PostgreSQL)**: Provides the managed PostgreSQL database service for data storage.
+-   **Railway (PostgreSQL)**: Provides external managed PostgreSQL database service for data storage. Connection established via `DATABASE_URL` environment variable using node-postgres (pg) driver.
 -   **Drizzle ORM**: Used for type-safe interaction with the PostgreSQL database.
